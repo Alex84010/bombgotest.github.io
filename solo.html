@@ -27,12 +27,13 @@
 
 <body>
 
-    <img src="assets/home.png" alt="Home" style="cursor:pointer; width:105px; position: fixed; top: 10px; left: 10px;"
+    <img src="assets/logohome.png" alt="Home"
+        style="cursor:pointer; width:105px; position: fixed; top: 10px; left: 10px;"
         onclick="window.location.href='./index.html'">
-    <img src="assets/retour.png" alt="Retour"
+    <img src="assets/logoretour.png" alt="Retour"
         style="cursor:pointer; width:105px; position: fixed; top: 10px; left: 125px;"
         onclick="window.location.href='./index.html'">
-    <img src="assets/actualiser.png" alt="Actualiser"
+    <img src="assets/logorefresh.png" alt="Actualiser"
         style="cursor:pointer; width:105px; position: fixed; top: 10px; right: 10px;"
         onclick="window.location.href='./solo.html'">
 
@@ -70,6 +71,7 @@
         // Variables pour gérer les niveaux
         var currentLevel = 0; // Niveau actuel
         var platformsArray = []; // Tableau des plateformes du niveau
+        var tremplin = null; // Le tremplin
 
         // Différentes dispositions de plateformes pour chaque niveau
         var platformLayouts = [
@@ -77,11 +79,11 @@
             [{ x: 150, y: 350 }, { x: 400, y: 200 }, { x: 650, y: 300 }, { x: 400, y: 470 }],
             [{ x: 700, y: 250 }, { x: 80, y: 150 }, { x: 500, y: 400 }],
             [{ x: 300, y: 420 }, { x: 40, y: 200 }, { x: 650, y: 120 }, { x: 400, y: 300 }],
-            [{ x: 200, y: 350 }, { x: 40, y: 140 }, { x: 600, y: 240 }, { x: 350, y: 100 }],
-            [{ x: 200, y: 150 }, { x: 500, y: 310 }, { x: 700, y: 180 }, { x: 350, y: 450 }],
-            [{ x: 100, y: 400 }, { x: 300, y: 250 }, { x: 500, y: 150 }, { x: 700, y: 250 }],
-            [{ x: 50, y: 300 }, { x: 250, y: 200 }, { x: 450, y: 100 }, { x: 650, y: 200 }],
-            [{ x: 400, y: 350 }, { x: 200, y: 250 }, { x: 600, y: 150 }],
+            [{ x: 200, y: 380 }, { x: 40, y: 140 }, { x: 600, y: 240 }, { x: 350, y: 100 }],
+            [{ x: 200, y: 150 }, { x: 500, y: 310 }, { x: 700, y: 180 }, { x: 350, y: 460 }],
+            [{ x: 100, y: 380 }, { x: 300, y: 250 }, { x: 500, y: 150 }, { x: 700, y: 250 }],
+            [{ x: 50, y: 380 }, { x: 250, y: 200 }, { x: 450, y: 100 }, { x: 650, y: 200 }],
+            [{ x: 400, y: 380 }, { x: 200, y: 250 }, { x: 600, y: 150 }],
             [{ x: 100, y: 500 }, { x: 300, y: 350 }, { x: 500, y: 200 }, { x: 700, y: 100 }]
         ];
 
@@ -89,12 +91,17 @@
         function preload() {
             this.load.image('sky', 'assets/sky.png'); // Charger l'image du ciel
             this.load.image('ground', 'assets/platform.png'); // Charger l'image des plateformes
-            this.load.image('star', 'assets/star.png', { frameWidth: 3, frameHeight: 3 });
-            this.load.image('bomb', 'assets/bomb.png', { frameWidth: 3, frameHeight: 3 }); // Charger l'image des bombes
-            this.load.image('vie', 'assets/vie.png'); // Charger l'image des vies
-            this.load.image('novie', 'assets/novie.png'); // Charger l'image des vies perdues
-            // Charger une spritesheet (image contenant plusieurs frames du personnage)
-            this.load.spritesheet('dude', 'assets/dude.png', { frameWidth: 32, frameHeight: 48 });
+            this.load.image('star', 'assets/piece.png', { frameWidth: 3, frameHeight: 3 });
+            this.load.image('bomb', 'assets/bombe.png', { frameWidth: 3, frameHeight: 3 }); // Charger l'image des bombes
+            this.load.image('vie', 'assets/vie1.png'); // Charger l'image des vies
+            this.load.image('novie', 'assets/vie2.png'); // Charger l'image des vies perdues
+            this.load.image('tremplin', 'assets/tremplin.png');
+
+            const selectedChar = localStorage.getItem('selectedCharacter') || '1';
+            this.load.spritesheet('dude', `assets/personnageframe${selectedChar}.png`, {
+                frameWidth: 320,
+                frameHeight: 480
+            });
         }
 
         // Fonction create: initialiser les éléments du jeu une seule fois
@@ -111,6 +118,40 @@
                 lifeIcons.push(icon);
             }
 
+            function createPlatformsForLevel(level) {
+
+                // Supprimer anciennes plateformes
+                platformsArray.forEach(p => p.destroy());
+                platformsArray = [];
+
+                // Supprimer le tremplin s'il existe
+                if (tremplin) {
+                    tremplin.destroy();
+                    tremplin = null;
+                }
+
+                // Créer plateformes du niveau
+                platformLayouts[level].forEach(pos => {
+                    platformsArray.push(platforms.create(pos.x, pos.y, 'ground'));
+                });
+
+                // Ajouter le tremplin UNIQUEMENT au level 8 (index 7)
+                if (level === 1) {
+                    tremplin = platforms.scene.physics.add.staticSprite(387, 514, 'tremplin');
+                    tremplin.setScale(0.04);
+                    tremplin.refreshBody();
+
+                    // Collisions
+                    platforms.scene.physics.add.collider(player, tremplin, bounceOnTrampoline, null, platforms.scene);
+                    platforms.scene.physics.add.collider(stars, tremplin);
+                    platforms.scene.physics.add.collider(bombs, tremplin);
+                }
+            }
+
+            function bounceOnTrampoline(player, tremplin) {
+                player.setVelocityY(-600); // saut puissant
+            }
+
             // Créer le groupe statique de plateformes
             platforms = this.physics.add.staticGroup();
             // Ajouter la plateforme du sol (ground)
@@ -121,6 +162,7 @@
 
             // Créer le personnage du joueur
             player = this.physics.add.sprite(100, 450, 'dude');
+            player.setScale(0.125); // 👈 Nouvelle taille adaptée (divisé par 2 car sprites 10x plus grands)
             player.setBounce(0.2); // Le personnage rebondit légèrement
             player.setCollideWorldBounds(true); // Le personnage ne peut pas sortir de l'écran
 
@@ -169,6 +211,9 @@
             this.physics.add.collider(bombs, platforms); // Les bombes collisionnent avec les plateformes
             this.physics.add.overlap(player, stars, collectStar, null, this); // Le joueur collecte les étoiles
             this.physics.add.collider(player, bombs, hitBomb, null, this); // Le joueur touche une bombe
+            this.physics.add.collider(stars, tremplin);
+            this.physics.add.collider(bombs, tremplin);
+            this.physics.add.collider(player, tremplin, bounceOnTrampoline, null, this);
         }
 
         // Fonction update: mise à jour du jeu à chaque frame
@@ -235,7 +280,7 @@
             // Masquer l'icône de vie correspondante
             if (lives >= 0) {
                 lifeIcons[lives]
-                    .setTexture('novie')   // 👈 remplace l’image
+                    .setTexture('novie')   // 👈 remplace l'image
                     .setScale(0.02);       // garde la même taille
             }
 
